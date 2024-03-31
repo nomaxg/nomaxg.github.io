@@ -1,0 +1,106 @@
+---
+layout: default
+title: Circle of Fifths
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Circle of Fifths</title>
+</head>
+<body>
+<canvas id="circleOfFifths" width="400" height="400"></canvas>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('circleOfFifths');
+    const ctx = canvas.getContext('2d');
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const radius = canvas.width / 2 - 10;
+    const center = { x: canvas.width / 2, y: canvas.height / 2 };
+    const keys = ["C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F"];
+    const rootFrequencies = {
+        "C": 261.63, "G": 392.00, "D": 293.66, "A": 440.00, "E": 329.63, 
+        "B": 493.88, "F#": 369.99, "Db": 277.18, "Ab": 415.30, "Eb": 311.13, 
+        "Bb": 233.08, "F": 349.23
+    };
+    let oscillators = {};
+
+    function drawCircleOfFifths() {
+        keys.forEach((key, index) => {
+            const angle = Math.PI / 6 * index - Math.PI / 2;
+            const textAngle = Math.PI / 6 * (index + 0.5) - Math.PI / 2; // Adjust for better text alignment
+            const x = center.x + radius * Math.cos(textAngle) * 0.85; // Adjust text position
+            const y = center.y + radius * Math.sin(textAngle) * 0.85;
+
+            ctx.beginPath();
+            ctx.moveTo(center.x, center.y);
+            ctx.arc(center.x, center.y, radius, angle, angle + Math.PI / 6);
+            ctx.closePath();
+            ctx.fillStyle = 'lightgray';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = 'black';
+            ctx.font = '16px Arial';
+            ctx.fillText(key, x, y);
+        });
+    }
+
+    function getClickedKey(x, y) {
+        const angle = Math.atan2(y - center.y, x - center.x) + Math.PI / 2;
+        const index = Math.floor(((angle + (Math.PI * 2)) % (Math.PI * 2)) / (Math.PI / 6));
+        return keys[index];
+    }
+
+   function playChord(key, start, minor = false) {
+        if (start) {
+            const rootFreq = rootFrequencies[key];
+            const gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            gainNode.gain.setValueAtTime(0.01, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.1); // Smooth start
+
+            const intervals = minor ? [0, 3, 7] : [0, 4, 7, 11]; // Minor or Major 7th chord formula
+            const notes = intervals.map(n => rootFreq * Math.pow(2, n / 12));
+            oscillators[key] = notes.map(freq => {
+                const oscillator = audioContext.createOscillator();
+                oscillator.frequency.value = freq;
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                oscillator.start();
+                return oscillator;
+            });
+        } else {
+            if (oscillators[key]) {
+                oscillators[key].forEach(oscillator => oscillator.stop());
+                delete oscillators[key];
+            }
+        }
+    }
+
+    canvas.addEventListener('mousedown', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const distanceFromCenter = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
+        const key = getClickedKey(x, y);
+        const isMinor = distanceFromCenter < (radius / 2); // Determine if the touch is in the inner half
+
+        if (key && rootFrequencies[key]) {
+            playChord(key, true, isMinor);
+        }
+    });
+
+    canvas.addEventListener('mouseup', function() {
+        Object.keys(oscillators).forEach(key => playChord(key, false));
+    });
+
+    drawCircleOfFifths();
+});
+
+
+</script>
+</body>
+</html>
+

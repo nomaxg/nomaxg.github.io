@@ -1,0 +1,60 @@
+---
+layout: default
+title: Mini Synth
+---
+<div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  let oscillators = {};
+
+  function startTone(key, freq) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+
+    oscillator.start();
+
+    oscillators[key] = oscillator;
+  }
+
+  function stopTone(key) {
+    if (oscillators[key]) {
+      oscillators[key].stop();
+      delete oscillators[key];
+    }
+  }
+
+  const noteFrequencies = {
+    'a': 440,    // A4
+    's': 493.88, // B4
+    'd': 523.25, // C5
+    'f': 587.33, // D5
+    'g': 659.25, // E5
+    'h': 698.46, // F5
+    'j': 783.99  // G5
+  };
+
+  document.addEventListener('keydown', function(event) {
+    if (noteFrequencies[event.key] && !oscillators[event.key]) {
+      startTone(event.key, noteFrequencies[event.key]);
+    }
+  });
+
+  document.addEventListener('keyup', function(event) {
+    if (noteFrequencies[event.key]) {
+      stopTone(event.key);
+    }
+  });
+});
+</script>
+<div id="synthContainer">
+  <p>Press keys A through G to play notes.</p>
+</div>
+</div>
